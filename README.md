@@ -45,8 +45,10 @@ plugins:
 ## Test & benchmark
 
 ```bash
-PYTHONPATH=tests python -m pytest -q
-python scripts/bench.py
+python -m pytest -q                 # unit tests (47)
+python scripts/bench.py             # before/after token savings
+python scripts/integration_test.py  # against real CodeRouter (needs: pip install coderouter-cli)
+python scripts/live/run_live.py     # real `coderouter serve` + stub upstream
 ```
 
 ## CCR re-expansion (Phase 2)
@@ -79,6 +81,15 @@ plugins:
 ```
 
 Status: Phases 0–3 complete. All implemented as plugins; CodeRouter core
-unmodified. See `../2026-06-21_headroom統合計画_v2.md` for the roadmap.
+unmodified. Phase 4 (optional ML/AST compression) is not started.
+
+## Relationship to CodeRouter
+
+This is a standalone, independently-versioned plugin for
+[CodeRouter](https://github.com/zephel01/CodeRouter). It does not import
+CodeRouter at runtime — it only attaches via the `coderouter.input_filter` /
+`coderouter.observer` entry points, and activates only when listed in
+`plugins.enabled`. Integration and live tests install `coderouter-cli` to
+exercise the real engine.
 
 MIT License.
