@@ -1,5 +1,12 @@
 # coderouter-plugin-compress
 
+[![CI](https://github.com/zephel01/coderouter-plugin-compress/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zephel01/coderouter-plugin-compress/actions/workflows/ci.yml)
+![python](https://img.shields.io/badge/python-3.10%2B-blue)
+![runtime deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
+![license](https://img.shields.io/badge/license-MIT-yellow)
+
+[CodeRouter 本体](https://github.com/zephel01/CodeRouter) · sibling plugin: [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) · upstream inspiration: [headroom](https://github.com/chopratejas/headroom)
+
 Headroom-inspired **context compression** for CodeRouter. A pure-stdlib
 `InputFilter` plugin that compresses `tool_result` blocks (JSON / log) before
 they reach the LLM — "same answers, fewer tokens".
@@ -10,6 +17,8 @@ they reach the LLM — "same answers, fewer tokens".
 - **Safe by default.** Any crusher error leaves the block untouched; `mode: off`
   is an exact pass-through.
 - **Reversible (CCR).** Originals are kept locally, keyed by content hash.
+
+**Docs:** [Architecture](docs/architecture.md) · [CCR (reversible compression)](docs/CCR.md) · [CacheAligner](docs/CACHE_ALIGNER.md)
 
 ## Install
 
@@ -91,5 +100,13 @@ CodeRouter at runtime — it only attaches via the `coderouter.input_filter` /
 `coderouter.observer` entry points, and activates only when listed in
 `plugins.enabled`. Integration and live tests install `coderouter-cli` to
 exercise the real engine.
+
+## Related
+
+| Project | Role |
+|---|---|
+| [CodeRouter](https://github.com/zephel01/CodeRouter) | The wire-layer router that hosts this plugin (required). |
+| [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) | Sibling plugin — cross-session memory injected at the wire layer. Composes cleanly with `compress`. |
+| [headroom](https://github.com/chopratejas/headroom) | Upstream inspiration for the compression / CCR / cache-alignment ideas. |
 
 MIT License.
