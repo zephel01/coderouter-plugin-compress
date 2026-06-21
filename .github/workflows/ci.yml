@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install plugin (+ dev)
+        run: pip install -e ".[dev]"
+
+      - name: Unit tests
+        run: python -m pytest -q
+
+  integration:
+    # Integration + live tests need the real CodeRouter package installed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # CodeRouter requires >=3.12
+
+      - name: Install plugin + CodeRouter
+        run: |
+          pip install -e ".[dev]"
+          pip install coderouter-cli
+
+      - name: Integration test (real CodeRouter loader + request)
+        run: python scripts/integration_test.py
+
+      - name: Live test (real coderouter serve + stub upstream)
+        run: python scripts/live/run_live.py

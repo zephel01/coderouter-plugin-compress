@@ -1,0 +1,36 @@
+# Live-test config: one local (free) provider pointing at the stub upstream,
+# with the compress + compress-stats plugins enabled. Paid disabled.
+allow_paid: false
+default_profile: default
+
+plugins:
+  enabled: [compress, compress-stats, cache-align]
+  config:
+    compress:
+      mode: aggressive          # exercise compression + CCR re-expansion
+      min_block_tokens: 20
+      targets: [tool_result]
+      crushers: [json, log, text]
+      ccr: true
+      ccr_restore: explicit
+    cache-align:
+      inject_cache_control: true
+      max_breakpoints: 4
+
+providers:
+  - name: local-stub
+    kind: openai_compat
+    base_url: http://127.0.0.1:9911/v1
+    model: stub-model
+    paid: false
+    api_key_env: null
+    timeout_s: 30
+    capabilities:
+      chat: true
+      streaming: true
+      tools: true
+
+profiles:
+  - name: default
+    providers:
+      - local-stub
