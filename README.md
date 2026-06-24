@@ -5,29 +5,25 @@
 ![runtime deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-yellow)
 
-[CodeRouter 本体](https://github.com/zephel01/CodeRouter) · sibling plugin: [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) · upstream inspiration: [headroom](https://github.com/chopratejas/headroom)
+**日本語** · [English](./README.en.md) · [CodeRouter 本体](https://github.com/zephel01/CodeRouter) · 姉妹プラグイン: [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) · 着想元: [headroom](https://github.com/chopratejas/headroom)
 
-Headroom-inspired **context compression** for CodeRouter. A pure-stdlib
-`InputFilter` plugin that compresses `tool_result` blocks (JSON / log) before
-they reach the LLM — "same answers, fewer tokens".
+CodeRouter 向けの **コンテキスト圧縮** プラグイン（[headroom](https://github.com/chopratejas/headroom) に着想）。`tool_result` ブロック（JSON / ログ）を LLM に届く前に圧縮する、pure-stdlib の `InputFilter` プラグインです。狙いは「答えは同じ、トークンは少なく」。
 
-- **Opt-in.** Only activates when `compress` is listed in `plugins.enabled`.
-- **Zero core dependencies.** MVP crushers are pure Python. Precise token
-  metering (`accuracy`) and AST code compression (`code`) are optional extras.
-- **Safe by default.** Any crusher error leaves the block untouched; `mode: off`
-  is an exact pass-through.
-- **Reversible (CCR).** Originals are kept locally, keyed by content hash.
+- **opt-in。** `plugins.enabled` に `compress` を明示したときだけ作動します。
+- **コア依存ゼロ。** MVP の crusher は pure Python。精密なトークン計測（`accuracy`）と AST コード圧縮（`code`）は任意の extras です。
+- **既定で安全。** crusher がエラーになってもブロックは無加工のまま。`mode: off` は完全なパススルーです。
+- **可逆（CCR）。** 原文はコンテンツハッシュをキーにローカル保持されます。
 
-**Docs:** [Architecture](docs/architecture.md) · [CCR (reversible compression)](docs/CCR.md) · [CacheAligner](docs/CACHE_ALIGNER.md)
+**ドキュメント:** [Architecture](docs/architecture.md) · [CCR（可逆圧縮）](docs/CCR.md) · [CacheAligner](docs/CACHE_ALIGNER.md)
 
-## Install
+## インストール
 
 ```bash
-pip install -e .              # core (pure stdlib)
-pip install -e ".[accuracy]"  # + local-tokenizer metering (CJK-correct)
+pip install -e .              # コア（pure stdlib）
+pip install -e ".[accuracy]"  # + ローカルトークナイザ計測（CJK 正確）
 ```
 
-## Enable in CodeRouter (`providers.yaml`)
+## CodeRouter で有効化（`providers.yaml`）
 
 ```yaml
 plugins:
@@ -40,73 +36,73 @@ plugins:
       crushers: [json, log, text]
       ccr: true
       metering:
-        tokenizer_path: ~/.coderouter/tokenizers/sonnet.json  # optional
+        tokenizer_path: ~/.coderouter/tokenizers/sonnet.json  # 任意
 ```
 
-## What it compresses
+## 何を圧縮するか
 
-| Crusher | Target | Technique |
+| Crusher | 対象 | 手法 |
 |---|---|---|
-| `json` | JSON tool output | array-of-objects → columnar table (key dedup) + whitespace minify |
-| `log`  | logs / stack traces | exact-run + template-run folding; **marker lines kept verbatim** |
-| `text` | other long blocks | conservative middle-elision, markers preserved |
+| `json` | JSON のツール出力 | オブジェクト配列 → 列指向テーブル（キー重複排除）+ 空白の最小化 |
+| `log`  | ログ / スタックトレース | 完全一致ラン + テンプレートランの畳み込み。**マーカー行は逐語で保持** |
+| `text` | その他の長いブロック | 保守的な中間省略、マーカーは保持 |
 
-## Test & benchmark
+## テスト & ベンチマーク
 
 ```bash
-python -m pytest -q                 # unit tests (47)
-python scripts/bench.py             # before/after token savings
-python scripts/integration_test.py  # against real CodeRouter (needs: pip install coderouter-cli)
-python scripts/live/run_live.py     # real `coderouter serve` + stub upstream
+python -m pytest -q                 # ユニットテスト（47 件）
+python scripts/bench.py             # 圧縮前後のトークン削減量
+python scripts/integration_test.py  # 実 CodeRouter に対して（要: pip install coderouter-cli）
+python scripts/live/run_live.py     # 実 `coderouter serve` + スタブ upstream
 ```
 
-## CCR re-expansion (Phase 2)
+## CCR 再展開（Phase 2）
 
-Each compressed block is tagged with a content-hash id `ccr_<hex>` and a hint:
-`reply "expand ccr_<hex>" to restore`. When a later turn echoes that id, the
-block is passed through **uncompressed** that turn — deterministic, no false
-positives, works with local models (no tool call needed). Toggle with
-`ccr_restore: explicit | off` (default `explicit`).
+圧縮されたブロックには、コンテンツハッシュ ID `ccr_<hex>` とヒント
+`reply "expand ccr_<hex>" to restore` が付与されます。後続のターンでその ID が
+エコーされると、そのターンはブロックを **非圧縮** のまま通します。決定論的で
+誤検出がなく、ローカルモデルでも動作します（ツールコール不要）。
+`ccr_restore: explicit | off`（既定 `explicit`）で切り替えます。
 
-## CacheAligner (Phase 3)
+## CacheAligner（Phase 3）
 
-A second, independent InputFilter (`cache-align`, **opt-in**) that marks
-Anthropic prompt-cache breakpoints and optionally stabilizes the prefix —
-implemented as a plugin filter, so CodeRouter core is never modified. On the
-Anthropic-native paid route the `cache_control` markers are forwarded and the
-big stable system+tools prefix is cached; on OpenAI/local routes they are
-dropped harmlessly in translation.
+2 つ目の独立した InputFilter（`cache-align`、**opt-in**）。Anthropic の
+プロンプトキャッシュのブレークポイントを付与し、必要に応じてプレフィックスを
+安定化します。プラグインフィルタとして実装されているため、CodeRouter コアは
+一切変更されません。Anthropic ネイティブの有料ルートでは `cache_control`
+マーカーがそのまま転送され、大きく安定した system+tools プレフィックスが
+キャッシュされます。OpenAI / ローカルルートでは変換時に無害に破棄されます。
 
 ```yaml
 plugins:
   enabled: [compress, compress-stats, cache-align]
   config:
     cache-align:
-      inject_cache_control: true    # ephemeral breakpoints on system + tools tails
+      inject_cache_control: true    # system + tools 末尾に ephemeral ブレークポイント
       cache_system: true
       cache_tools: true
-      stabilize_tools_order: false  # higher risk; off by default
-      max_breakpoints: 4            # Anthropic hard limit
+      stabilize_tools_order: false  # リスク高め。既定 off
+      max_breakpoints: 4            # Anthropic のハード上限
 ```
 
-Status: Phases 0–3 complete. All implemented as plugins; CodeRouter core
-unmodified. Phase 4 (optional ML/AST compression) is not started.
+ステータス: Phase 0–3 完了。すべてプラグインとして実装され、CodeRouter コアは
+未変更です。Phase 4（任意の ML/AST 圧縮）は未着手です。
 
-## Relationship to CodeRouter
+## CodeRouter との関係
 
-This is a standalone, independently-versioned plugin for
-[CodeRouter](https://github.com/zephel01/CodeRouter). It does not import
-CodeRouter at runtime — it only attaches via the `coderouter.input_filter` /
-`coderouter.observer` entry points, and activates only when listed in
-`plugins.enabled`. Integration and live tests install `coderouter-cli` to
-exercise the real engine.
+これは [CodeRouter](https://github.com/zephel01/CodeRouter) のための、独立して
+バージョン管理されるスタンドアロンプラグインです。実行時に CodeRouter を
+import することはありません。`coderouter.input_filter` / `coderouter.observer`
+のエントリポイント経由でアタッチし、`plugins.enabled` に列挙されたときだけ
+作動します。統合テストとライブテストは、実エンジンを動かすために
+`coderouter-cli` をインストールします。
 
-## Related
+## 関連プロジェクト
 
-| Project | Role |
+| プロジェクト | 役割 |
 |---|---|
-| [CodeRouter](https://github.com/zephel01/CodeRouter) | The wire-layer router that hosts this plugin (required). |
-| [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) | Sibling plugin — cross-session memory injected at the wire layer. Composes cleanly with `compress`. |
-| [headroom](https://github.com/chopratejas/headroom) | Upstream inspiration for the compression / CCR / cache-alignment ideas. |
+| [CodeRouter](https://github.com/zephel01/CodeRouter) | このプラグインをホストする wire 層ルーター（必須）。 |
+| [coderouter-plugin-memory](https://github.com/zephel01/coderouter-plugin-memory) | 姉妹プラグイン — wire 層で注入されるセッション横断メモリ。`compress` ときれいに併用できます。 |
+| [headroom](https://github.com/chopratejas/headroom) | 圧縮 / CCR / キャッシュ整列のアイデアの着想元。 |
 
 MIT License.
