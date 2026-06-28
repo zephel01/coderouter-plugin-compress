@@ -22,10 +22,24 @@ they reach the LLM — "same answers, fewer tokens".
 
 ## Install
 
+> **Important:** install this plugin into the **same Python environment as CodeRouter itself**. It is discovered via entry points (`coderouter.input_filter` / `coderouter.observer`), so a plugin in a different venv is invisible. Match the command to how you run CodeRouter.
+
+Not on PyPI yet, so install **from GitHub** for now (once published you can use the package name).
+
+| How you run CodeRouter | Add the plugin |
+|---|---|
+| `uv tool install coderouter-cli` (persistent) | `uv tool install coderouter-cli --with "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress"` |
+| `uvx --from coderouter-cli ...` (ephemeral) | `uvx --from coderouter-cli --with "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress" coderouter serve --port 8088` |
+| Project / your own venv | activate the venv → `uv pip install "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress"` |
+| Cloned locally | `uv pip install -e .` (from this repo root) |
+
+For accurate (CJK-correct) token metering, add the optional extra:
+
 ```bash
-pip install -e .              # core (pure stdlib)
-pip install -e ".[accuracy]"  # + local-tokenizer metering (CJK-correct)
+uv pip install "coderouter-plugin-compress[accuracy] @ git+https://github.com/zephel01/coderouter-plugin-compress"
 ```
+
+`accuracy` pulls in `tokenizers` (no network, no torch). The core plugin has zero dependencies.
 
 ## Enable in CodeRouter (`providers.yaml`)
 
@@ -42,6 +56,34 @@ plugins:
       metering:
         tokenizer_path: ~/.coderouter/tokenizers/sonnet.json  # optional
 ```
+
+> Installing alone does nothing — the plugin only activates when its name is in `enabled` (opt-in allowlist).
+
+## Verify
+
+```bash
+coderouter serve --port 8088
+```
+
+Startup logs should show the plugin was discovered:
+
+```
+plugin-loaded ... "plugin": "compress" ...
+plugin-loaded ... "plugin": "compress-stats" ...
+```
+
+When compression fires (a `tool_result` >= `min_block_tokens`), a `compress-stats {... blocks_compressed > 0 ...}` line appears after a request.
+
+**The dashboard "Tokens saved" tiles require CodeRouter core >= 2.6.1.** Check:
+
+```bash
+curl -s http://localhost:8088/metrics.json \
+  | python3 -c "import sys,json;c=json.load(sys.stdin)['counters'];print(c.get('tokens_saved_total'), c.get('tokens_saved_by_mechanism'))"
+```
+
+If `compress` carries a token count, it shows up on `http://localhost:8088/dashboard` under "Tokens saved · compress".
+
+> If the plugin doesn't load, the near-universal cause is installing it in a different env than CodeRouter. Re-install using the row above that matches how you run CodeRouter.
 
 ## What it compresses
 

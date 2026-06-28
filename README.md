@@ -18,10 +18,24 @@ CodeRouter 向けの **コンテキスト圧縮** プラグイン（[headroom](h
 
 ## インストール
 
+> **重要:** このプラグインは **CodeRouter 本体と同じ Python 環境** に入れてください。エントリポイント（`coderouter.input_filter` / `coderouter.observer`）で発見されるため、別の venv に入れると検出されません。コマンドは本体の動かし方に合わせます。
+
+PyPI 未公開のため、現状は **GitHub から** 入れます（公開後はパッケージ名で入れられます）。
+
+| 本体の起動方法 | プラグイン追加 |
+|---|---|
+| `uv tool install coderouter-cli`（常駐） | `uv tool install coderouter-cli --with "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress"` |
+| `uvx --from coderouter-cli ...`（都度実行） | `uvx --from coderouter-cli --with "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress" coderouter serve --port 8088` |
+| プロジェクト / 自前 venv | venv を activate → `uv pip install "coderouter-plugin-compress @ git+https://github.com/zephel01/coderouter-plugin-compress"` |
+| ローカルにクローン済み | このリポジトリのルートで `uv pip install -e .` |
+
+正確なトークン計測（CJK 対応・任意）が要るなら extras を付けます:
+
 ```bash
-pip install -e .              # コア（pure stdlib）
-pip install -e ".[accuracy]"  # + ローカルトークナイザ計測（CJK 正確）
+uv pip install "coderouter-plugin-compress[accuracy] @ git+https://github.com/zephel01/coderouter-plugin-compress"
 ```
+
+`accuracy` = `tokenizers` を追加（ネットワーク・torch なし）。コア本体は依存ゼロ。
 
 ## CodeRouter で有効化（`providers.yaml`）
 
@@ -38,6 +52,34 @@ plugins:
       metering:
         tokenizer_path: ~/.coderouter/tokenizers/sonnet.json  # 任意
 ```
+
+> インストールしただけでは作動しません。`enabled` に名前を書いて初めて有効になります（opt-in allowlist）。
+
+## 動作確認
+
+```bash
+coderouter serve --port 8088
+```
+
+起動ログに次が出れば本体がプラグインを認識しています:
+
+```
+plugin-loaded ... "plugin": "compress" ...
+plugin-loaded ... "plugin": "compress-stats" ...
+```
+
+圧縮が効くと（`tool_result` が `min_block_tokens` 以上のとき）、リクエスト後に `compress-stats {... blocks_compressed > 0 ...}` がログに出ます。
+
+**dashboard の「Tokens saved」表示には CodeRouter 本体 ≥ 2.6.1 が必要です。** 確認:
+
+```bash
+curl -s http://localhost:8088/metrics.json \
+  | python3 -c "import sys,json;c=json.load(sys.stdin)['counters'];print(c.get('tokens_saved_total'), c.get('tokens_saved_by_mechanism'))"
+```
+
+`compress` のキーに削減トークン数が入っていれば、`http://localhost:8088/dashboard` の「Tokens saved · compress」に反映されます。
+
+> プラグインが読み込まれない場合のほぼ唯一の原因は「本体と別の env に入れた」ことです。上の表で本体と同じ起動方法に合わせて入れ直してください。
 
 ## 何を圧縮するか
 
